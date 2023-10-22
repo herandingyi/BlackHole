@@ -836,11 +836,11 @@ class ControlButtons extends StatelessWidget {
     this.shuffle = false,
     this.miniplayer = false,
     this.buttons = const [
-      'Previous',
+      //'Previous',
       'ItemLoopPrevious',
       'Play/Pause',
       'ItemLoopNext',
-      'Next'
+      //'Next'
     ],
     this.dominantColor,
   });
@@ -858,7 +858,8 @@ class ControlButtons extends StatelessWidget {
             return Builder(
               builder: (context) {
                 return IconButton(
-                    icon: const Icon(Icons.navigate_before),
+                    //icon: const Icon(Icons.navigate_before),
+                    icon: const Icon(Icons.skip_previous_rounded),
                     iconSize: miniplayer ? 24.0 : 45.0,
                     tooltip: AppLocalizations.of(context)!.itemLoopPrevious,
                     color: dominantColor ?? Theme.of(context).iconTheme.color,
@@ -870,7 +871,8 @@ class ControlButtons extends StatelessWidget {
             return Builder(
               builder: (context) {
                 return IconButton(
-                    icon: const Icon(Icons.navigate_next),
+                    //icon: const Icon(Icons.navigate_next),
+                    icon: const Icon(Icons.skip_next_rounded),
                     iconSize: miniplayer ? 24.0 : 45.0,
                     tooltip: AppLocalizations.of(context)!.itemLoopNext,
                     color: dominantColor ?? Theme.of(context).iconTheme.color,

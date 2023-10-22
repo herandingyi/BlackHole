@@ -131,9 +131,11 @@ Future<void> backgroundCallback(Uri? data) async {
     } else if (data?.path == '/pause') {
       audioHandler.pause();
     } else if (data?.path == '/skipNext') {
-      audioHandler.skipToNext();
+      audioHandler.customAction('itemLoopNext');
+      //audioHandler.skipToNext();
     } else if (data?.path == '/skipPrevious') {
-      audioHandler.skipToPrevious();
+      audioHandler.customAction('itemLoopPrevious');
+      //audioHandler.skipToPrevious();
     }
 
     // await HomeWidget.saveWidgetData<String>(

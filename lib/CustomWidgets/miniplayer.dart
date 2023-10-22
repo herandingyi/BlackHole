@@ -59,7 +59,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
 
           final List preferredMiniButtons = Hive.box('settings').get(
             'preferredMiniButtons',
-            defaultValue: ['Like', 'Play/Pause', 'Next'],
+            defaultValue: ['Like', 'Play/Pause', 'ItemLoopNext'],
           )?.toList() as List;
 
           final bool isLocal =
@@ -171,7 +171,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
               audioHandler,
               miniplayer: true,
               buttons: isLocalImage
-                  ? ['Like', 'Play/Pause', 'Next']
+                  ? ['Like', 'Play/Pause', 'ItemLoopNext']
                   : preferredMiniButtons,
             ),
     );

@@ -21,11 +21,12 @@ class _AppUIPageState extends State<AppUIPage> {
       .get('blacklistedHomeSections', defaultValue: []) as List;
   List miniButtonsOrder = Hive.box('settings').get(
     'miniButtonsOrder',
-    defaultValue: ['Like', 'Previous', 'Play/Pause', 'Next', 'Download'],
+    defaultValue:
+    ['ItemLoopPrevious', 'Play/Pause', 'ItemLoopNext'],
   ) as List;
   List preferredMiniButtons = Hive.box('settings').get(
     'preferredMiniButtons',
-    defaultValue: ['Like', 'Play/Pause', 'Next'],
+    defaultValue: ['ItemLoopPrevious', 'Play/Pause', 'ItemLoopNext'],
   )?.toList() as List;
   List<int> preferredCompactNotificationButtons = Hive.box('settings').get(
     'preferredCompactNotificationButtons',
@@ -331,7 +332,7 @@ class _AppUIPageState extends State<AppUIPage> {
                         'index': 0,
                       },
                       {
-                        'name': 'Previous',
+                        'name': 'ItemLoopPrevious',
                         'index': 1,
                       },
                       {
@@ -339,7 +340,7 @@ class _AppUIPageState extends State<AppUIPage> {
                         'index': 2,
                       },
                       {
-                        'name': 'Next',
+                        'name': 'ItemLoopNext',
                         'index': 3,
                       },
                       {
