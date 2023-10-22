@@ -36,7 +36,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:logging/logging.dart';
 import 'package:rxdart/rxdart.dart';
-
+import 'package:flutter_android_volume_keydown/flutter_android_volume_keydown.dart';
 enum Inc {
   none,
   keep,
@@ -68,7 +68,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   // late String stationType = 'entity';
   late bool cacheSong;
   final _equalizer = AndroidEqualizer();
-
+  StreamSubscription<HardwareButton>? subscription;
   Box? downloadsBox =
       Hive.isBoxOpen('downloads') ? Hive.box('downloads') : null;
   final List<String> refreshLinks = [];
@@ -375,6 +375,15 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
           .onError((error, stackTrace) {
         _onError(error, stackTrace, stopService: true);
         return null;
+      });
+    }
+    if(Platform.isAndroid) {
+      subscription = FlutterAndroidVolumeKeydown.stream.listen((event) {
+        if (event == HardwareButton.volume_down) {
+          customAction('itemLoopNext');
+        } else if (event == HardwareButton.volume_up) {
+          customAction('itemLoopNext');
+        }
       });
     }
     if (!jobRunning) {
