@@ -93,6 +93,43 @@ class _SeekBarState extends State<SeekBar> {
                 //     ),
                 //   )
                 // else
+                Row(
+                  children: [
+                    Icon(
+                      Icons.replay,
+                      size: 12,
+                      color: Theme.of(context).disabledColor,
+                    ),
+                    StreamBuilder<ItemLoopState>(
+                      stream: widget.audioHandler.itemLoopState,
+                      builder: (context, snapshot) {
+                        final ItemLoopState? data = snapshot.data;
+                        final int loopSecond = data?.loopSecond ?? 0;
+                        final int currSectionIndex = data?.currSectionIndex ?? 0;
+                        final int totalSection = data?.totalSection ?? 0;
+                        return GestureDetector(
+                          child: Text(
+                            '${loopSecond}s($currSectionIndex/$totalSection)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).disabledColor,
+                            ),
+                          ),
+                          onTap: () {
+                            showLoopItemDialog(
+                              context: context,
+                              title: AppLocalizations.of(context)!.adjustSpeed,
+                              divisions: 25,
+                              min: 0.5,
+                              max: 3.0,
+                              audioHandler: widget.audioHandler,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
                 const SizedBox(),
                 StreamBuilder<double>(
                   stream: widget.audioHandler.speed,
@@ -247,6 +284,86 @@ class HiddenThumbComponentShape extends SliderComponentShape {
 }
 
 void showSliderDialog({
+  required BuildContext context,
+  required String title,
+  required int divisions,
+  required double min,
+  required double max,
+  required AudioPlayerHandler audioHandler,
+  String valueSuffix = '',
+}) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15.0),
+      ),
+      title: Text(title, textAlign: TextAlign.center),
+      content: StreamBuilder<double>(
+        stream: audioHandler.speed,
+        builder: (context, snapshot) {
+          double value = snapshot.data ?? audioHandler.speed.value;
+          if (value > max) {
+            value = max;
+          }
+          if (value < min) {
+            value = min;
+          }
+          return SizedBox(
+            height: 100.0,
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.minus),
+                      onPressed: audioHandler.speed.value > min
+                          ? () {
+                              audioHandler
+                                  .setSpeed(audioHandler.speed.value - 0.1);
+                            }
+                          : null,
+                    ),
+                    Text(
+                      '${snapshot.data?.toStringAsFixed(1)}$valueSuffix',
+                      style: const TextStyle(
+                        fontFamily: 'Fixed',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24.0,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.plus),
+                      onPressed: audioHandler.speed.value < max
+                          ? () {
+                              audioHandler
+                                  .setSpeed(audioHandler.speed.value + 0.1);
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+                Slider(
+                  inactiveColor:
+                      Theme.of(context).iconTheme.color!.withOpacity(0.4),
+                  activeColor: Theme.of(context).iconTheme.color,
+                  divisions: divisions,
+                  min: min,
+                  max: max,
+                  value: value,
+                  onChanged: audioHandler.setSpeed,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+void showLoopItemDialog({
   required BuildContext context,
   required String title,
   required int divisions,

@@ -767,6 +767,37 @@ class PositionData {
   PositionData(this.position, this.bufferedPosition, this.duration);
 }
 
+class ItemLoopState {
+  final int loopSecond;
+  final int currSectionIndex;
+  final int totalSection;
+
+  const ItemLoopState(
+    this.currSectionIndex,
+    this.totalSection, {
+    this.loopSecond = 15,
+  });
+
+  bool get hasPrevious => currSectionIndex > 0;
+
+  bool get hasNext => currSectionIndex < totalSection;
+
+  static int getLoopSecond() {
+    return 15;
+  }
+
+  static int getSection(int sec) {
+    final int loopSec = getLoopSecond();
+    int ret = 0;
+    if (sec ~/ loopSec.toDouble() == (sec / loopSec)) {
+      ret = sec ~/ loopSec - 1;
+    } else {
+      ret = sec ~/ loopSec;
+    }
+    return ret;
+  }
+}
+
 class QueueState {
   static const QueueState empty =
       QueueState([], 0, [], AudioServiceRepeatMode.none);
@@ -804,7 +835,13 @@ class ControlButtons extends StatelessWidget {
     this.audioHandler, {
     this.shuffle = false,
     this.miniplayer = false,
-    this.buttons = const ['Previous', 'Play/Pause', 'Next'],
+    this.buttons = const [
+      'Previous',
+      'ItemLoopPrevious',
+      'Play/Pause',
+      'ItemLoopNext',
+      'Next'
+    ],
     this.dominantColor,
   });
 
@@ -817,6 +854,29 @@ class ControlButtons extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: buttons.map((e) {
         switch (e) {
+          case 'ItemLoopPrevious':
+            return Builder(
+              builder: (context) {
+                return IconButton(
+                    icon: const Icon(Icons.navigate_before),
+                    iconSize: miniplayer ? 24.0 : 45.0,
+                    tooltip: AppLocalizations.of(context)!.itemLoopPrevious,
+                    color: dominantColor ?? Theme.of(context).iconTheme.color,
+                    onPressed: () =>
+                        audioHandler.customAction('itemLoopPrevious'));
+              },
+            );
+          case 'ItemLoopNext':
+            return Builder(
+              builder: (context) {
+                return IconButton(
+                    icon: const Icon(Icons.navigate_next),
+                    iconSize: miniplayer ? 24.0 : 45.0,
+                    tooltip: AppLocalizations.of(context)!.itemLoopNext,
+                    color: dominantColor ?? Theme.of(context).iconTheme.color,
+                    onPressed: () => audioHandler.customAction('itemLoopNext'));
+              },
+            );
           case 'Like':
             return !online
                 ? const SizedBox()
@@ -850,6 +910,10 @@ class ControlButtons extends StatelessWidget {
                   final playbackState = snapshot.data;
                   final processingState = playbackState?.processingState;
                   final playing = playbackState?.playing ?? true;
+                  if (processingState != AudioProcessingState.loading &&
+                      processingState != AudioProcessingState.buffering) {
+                    audioHandler.customAction('displayItemLoopState');
+                  }
                   return Stack(
                     children: [
                       if (processingState == AudioProcessingState.loading ||
@@ -963,6 +1027,7 @@ abstract class AudioPlayerHandler implements AudioHandler {
   ValueStream<double> get volume;
   Future<void> setVolume(double volume);
   ValueStream<double> get speed;
+  ValueStream<ItemLoopState> get itemLoopState;
 }
 
 class NowPlayingStream extends StatelessWidget {
@@ -2007,6 +2072,7 @@ class NameNControls extends StatelessWidget {
                 ? height * 0.2
                 : height * 0.3);
     final double nowplayingBoxHeight = min(70, height * 0.15);
+    audioHandler.customAction('displayItemLoopState');
     // height > 500 ? height * 0.4 : height * 0.15;
     // final double minNowplayingBoxHeight = height * 0.15;
     final String gradientType = Hive.box('settings')

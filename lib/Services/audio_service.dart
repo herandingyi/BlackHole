@@ -37,6 +37,15 @@ import 'package:just_audio/just_audio.dart';
 import 'package:logging/logging.dart';
 import 'package:rxdart/rxdart.dart';
 
+enum Inc {
+  none,
+  keep,
+  next,
+  previous,
+}
+
+typedef ItemLoopIncHandler = void Function(Inc a, int index);
+
 class AudioPlayerHandlerImpl extends BaseAudioHandler
     with QueueHandler, SeekHandler
     implements AudioPlayerHandler {
@@ -73,6 +82,10 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   @override
   final BehaviorSubject<double> speed = BehaviorSubject.seeded(1.0);
   final _mediaItemExpando = Expando<MediaItem>();
+  Timer? itemLoopTimer;
+  @override
+  final BehaviorSubject<ItemLoopState> itemLoopState =
+      BehaviorSubject.seeded(const ItemLoopState(0, 0));
 
   Stream<List<IndexedAudioSource>> get _effectiveSequence => Rx.combineLatest3<
               List<IndexedAudioSource>?,
@@ -752,7 +765,10 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   }
 
   @override
-  Future<void> skipToNext() => _player!.seekToNext();
+  Future<void> skipToNext() async {
+    await _player!.seekToNext();
+    incItemLoop(0, incHandler, intendInc: Inc.next);
+  }
 
   /// This is called when the user presses the "like" button.
   @override
@@ -777,12 +793,14 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
         Hive.box('settings').get('resetOnSkip', defaultValue: false) as bool;
     if (resetOnSkip) {
       if ((_player?.position.inSeconds ?? 5) <= 5) {
-        _player!.seekToPrevious();
+        await _player!.seekToPrevious();
+        displayItemLoopState(incItemLoop(0, incHandler, intendInc: Inc.previous));
       } else {
         _player!.seek(Duration.zero);
       }
     } else {
-      _player!.seekToPrevious();
+      await _player!.seekToPrevious();
+      displayItemLoopState(incItemLoop(0, incHandler, intendInc: Inc.previous));
     }
   }
 
@@ -798,10 +816,85 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   }
 
   @override
-  Future<void> play() => _player!.play();
+  Future<void> play() async {
+    _player!.play();
+    final int currIndex = getCurrItemIndex();
+    displayItemLoopState(currIndex);
+    itemLoopTimer = itemLoop(currIndex);
+  }
+
+  int incItemLoop(
+    int inc,
+    ItemLoopIncHandler incHandler, {
+    Inc intendInc = Inc.none,
+  }) {
+    final int currIndex = getCurrItemIndex();
+    final int nextIndex = currIndex + inc;
+    if (intendInc == Inc.previous || nextIndex < 0) {
+      putCurrItemIndex(0);
+      incHandler(Inc.previous, 0);
+      return 0;
+    }
+
+    final int loopSec = ItemLoopState.getLoopSecond();
+    final int nextSec = loopSec * nextIndex;
+    final int totalSec = _player?.duration?.inSeconds ?? 0;
+    if (intendInc == Inc.next || nextSec > totalSec) {
+      putCurrItemIndex(0);
+      incHandler(Inc.next, 0);
+      return 0;
+    }
+
+    putCurrItemIndex(nextIndex);
+    incHandler(Inc.keep, nextIndex);
+    return nextIndex;
+  }
+
+  Timer itemLoop(int i, {Inc inc = Inc.keep}) {
+    itemLoopTimer?.cancel();
+    final int loopSec = ItemLoopState.getLoopSecond();
+    if (inc == Inc.keep) {
+      _player?.seek(Duration(seconds: loopSec * i));
+    } else if (inc == Inc.previous) {
+      Future.wait([_player?.setLoopMode(LoopMode.all) ?? Future.value()]);
+      final previousIndex = _player?.previousIndex ?? 0;
+      Future.wait([
+        _player?.seek(Duration(seconds: loopSec * i), index: previousIndex)
+            ?? Future.value(),
+        setRepeatMode(AudioServiceRepeatMode.one),
+      ]);
+    } else if (inc == Inc.next) {
+      Future.wait([_player?.setLoopMode(LoopMode.all) ?? Future.value()]);
+      final nextIndex = _player?.nextIndex ?? 0;
+      Future.wait([
+        _player?.seek(Duration(seconds: loopSec * i), index: nextIndex)
+            ?? Future.value(),
+        setRepeatMode(AudioServiceRepeatMode.one),
+      ]);
+    }
+    return Timer(Duration(seconds: loopSec + 2), () {
+      itemLoopTimer = itemLoop(i);
+    });
+  }
+
+  void displayItemLoopState(int currIndex) {
+    final int totalSec = _player?.duration?.inSeconds ?? 0;
+    final int totalSection = ItemLoopState.getSection(totalSec);
+    final ItemLoopState state = ItemLoopState(currIndex, totalSection);
+    itemLoopState.add(state);
+  }
+
+  int getCurrItemIndex() {
+    return Hive.box('cache').get('itemLoopLastIndex', defaultValue: 0) as int;
+  }
+
+  void putCurrItemIndex(int index) {
+    Hive.box('cache').put('itemLoopLastIndex', index);
+  }
 
   @override
   Future<void> pause() async {
+    itemLoopTimer?.cancel();
     _player!.pause();
     await Hive.box('cache').put('lastIndex', _player!.currentIndex);
     await Hive.box('cache').put('lastPos', _player!.position.inSeconds);
@@ -813,6 +906,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
 
   @override
   Future<void> stop() async {
+    itemLoopTimer?.cancel();
     Logger.root.info('stopping player');
     await _player!.stop();
     await playbackState.firstWhere(
@@ -824,8 +918,21 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
     await addLastQueue(queue.value);
   }
 
+  void incHandler(Inc inc, int index) {
+    itemLoopTimer = itemLoop(index, inc: inc);
+  }
+
   @override
   Future customAction(String name, [Map<String, dynamic>? extras]) {
+    if (name == 'itemLoopPrevious') {
+      displayItemLoopState(incItemLoop(-1, incHandler));
+    }
+    if (name == 'itemLoopNext') {
+      displayItemLoopState(incItemLoop(1, incHandler));
+    }
+    if (name == 'displayItemLoopState') {
+      displayItemLoopState(getCurrItemIndex());
+    }
     if (name == 'sleepTimer') {
       _sleepTimer?.cancel();
       if (extras?['time'] != null &&
