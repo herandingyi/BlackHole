@@ -36,7 +36,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:logging/logging.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:flutter_android_volume_keydown/flutter_android_volume_keydown.dart';
+import 'package:perfect_volume_control/perfect_volume_control.dart';
+
 enum Inc {
   none,
   keep,
@@ -68,7 +69,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   // late String stationType = 'entity';
   late bool cacheSong;
   final _equalizer = AndroidEqualizer();
-  StreamSubscription<HardwareButton>? subscription;
+  double oldVolume = 0;
   Box? downloadsBox =
       Hive.isBoxOpen('downloads') ? Hive.box('downloads') : null;
   final List<String> refreshLinks = [];
@@ -377,15 +378,8 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
         return null;
       });
     }
-    if(Platform.isAndroid) {
-      subscription = FlutterAndroidVolumeKeydown.stream.listen((event) {
-        if (event == HardwareButton.volume_down) {
-          customAction('itemLoopNext');
-        } else if (event == HardwareButton.volume_up) {
-          customAction('itemLoopNext');
-        }
-      });
-    }
+    Future.wait([PerfectVolumeControl.getVolume()])
+        .then((value) => oldVolume = value[0]);
     setRepeatMode(AudioServiceRepeatMode.one);
     if (!jobRunning) {
       refreshJob();
@@ -883,8 +877,18 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
       ]);
     }
     return Timer(Duration(seconds: loopSec + 2), () {
-      itemLoopTimer = itemLoop(i);
+      Future.wait([PerfectVolumeControl.getVolume()])
+          .then((value) => nextByVolume(value[0], i));
     });
+  }
+
+  void nextByVolume(double newVolume, int i) {
+    if (oldVolume != newVolume) {
+      PerfectVolumeControl.setVolume(oldVolume);
+      incItemLoop(1, incHandler);
+    } else {
+      itemLoopTimer = itemLoop(i);
+    }
   }
 
   void displayItemLoopState(int currIndex) {
