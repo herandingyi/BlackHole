@@ -386,6 +386,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
         }
       });
     }
+    setRepeatMode(AudioServiceRepeatMode.one);
     if (!jobRunning) {
       refreshJob();
     }
