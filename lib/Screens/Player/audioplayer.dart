@@ -774,25 +774,28 @@ class ItemLoopState {
 
   const ItemLoopState(
     this.currSectionIndex,
-    this.totalSection, {
-    this.loopSecond = 15,
-  });
+    this.totalSection,
+    this.loopSecond,
+  );
 
   bool get hasPrevious => currSectionIndex > 0;
 
   bool get hasNext => currSectionIndex < totalSection;
-
-  static int getLoopSecond() {
+  static int getWaitSecond() {
     return 15;
   }
 
-  static int getSection(int sec) {
-    final int loopSec = getLoopSecond();
+  static int getLoopMillisecond(double speed) {
+    return getWaitSecond() * (speed * 1000).round();
+  }
+
+  static int getSection(int ms, double speed) {
+    final int loopMs = getLoopMillisecond(speed);
     int ret = 0;
-    if (sec ~/ loopSec.toDouble() == (sec / loopSec)) {
-      ret = sec ~/ loopSec - 1;
+    if (ms ~/ loopMs.toDouble() == (ms / loopMs)) {
+      ret = ms ~/ loopMs - 1;
     } else {
-      ret = sec ~/ loopSec;
+      ret = ms ~/ loopMs;
     }
     return ret;
   }

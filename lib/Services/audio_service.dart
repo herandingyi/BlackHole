@@ -64,6 +64,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   late String preferredMobileQuality;
   late List<int> preferredCompactNotificationButtons = [1, 2, 3];
   late bool resetOnSkip;
+
   // late String? stationId = '';
   // late List<String> stationNames = [];
   // late String stationType = 'entity';
@@ -86,7 +87,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   Timer? itemLoopTimer;
   @override
   final BehaviorSubject<ItemLoopState> itemLoopState =
-      BehaviorSubject.seeded(const ItemLoopState(0, 0));
+      BehaviorSubject.seeded(const ItemLoopState(0, 0, 15));
 
   Stream<List<IndexedAudioSource>> get _effectiveSequence => Rx.combineLatest3<
               List<IndexedAudioSource>?,
@@ -798,7 +799,8 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
     if (resetOnSkip) {
       if ((_player?.position.inSeconds ?? 5) <= 5) {
         await _player!.seekToPrevious();
-        displayItemLoopState(incItemLoop(0, incHandler, intendInc: Inc.previous));
+        displayItemLoopState(
+            incItemLoop(0, incHandler, intendInc: Inc.previous));
       } else {
         _player!.seek(Duration.zero);
       }
@@ -840,10 +842,10 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
       return 0;
     }
 
-    final int loopSec = ItemLoopState.getLoopSecond();
-    final int nextSec = loopSec * nextIndex;
-    final int totalSec = _player?.duration?.inSeconds ?? 0;
-    if (intendInc == Inc.next || nextSec > totalSec) {
+    final int loopMs = ItemLoopState.getLoopMillisecond(speed.value);
+    final int nextMs = loopMs * nextIndex;
+    final int totalMs = _player?.duration?.inMilliseconds ?? 0;
+    if (intendInc == Inc.next || nextMs > totalMs) {
       putCurrItemIndex(0);
       incHandler(Inc.next, 0);
       return 0;
@@ -856,27 +858,28 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
 
   Timer itemLoop(int i, {Inc inc = Inc.keep}) {
     itemLoopTimer?.cancel();
-    final int loopSec = ItemLoopState.getLoopSecond();
+    final int loopMs = ItemLoopState.getLoopMillisecond(speed.value);
     if (inc == Inc.keep) {
-      _player?.seek(Duration(seconds: loopSec * i));
+      _player?.seek(Duration(milliseconds: loopMs * i));
     } else if (inc == Inc.previous) {
       Future.wait([_player?.setLoopMode(LoopMode.all) ?? Future.value()]);
       final previousIndex = _player?.previousIndex ?? 0;
       Future.wait([
-        _player?.seek(Duration(seconds: loopSec * i), index: previousIndex)
-            ?? Future.value(),
+        _player?.seek(Duration(milliseconds: loopMs * i),
+                index: previousIndex) ??
+            Future.value(),
         setRepeatMode(AudioServiceRepeatMode.one),
       ]);
     } else if (inc == Inc.next) {
       Future.wait([_player?.setLoopMode(LoopMode.all) ?? Future.value()]);
       final nextIndex = _player?.nextIndex ?? 0;
       Future.wait([
-        _player?.seek(Duration(seconds: loopSec * i), index: nextIndex)
-            ?? Future.value(),
+        _player?.seek(Duration(milliseconds: loopMs * i), index: nextIndex) ??
+            Future.value(),
         setRepeatMode(AudioServiceRepeatMode.one),
       ]);
     }
-    return Timer(Duration(seconds: loopSec + 2), () {
+    return Timer(Duration(seconds: ItemLoopState.getWaitSecond() + 2), () {
       Future.wait([PerfectVolumeControl.getVolume()])
           .then((value) => nextByVolume(value[0], i));
     });
@@ -892,9 +895,13 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   }
 
   void displayItemLoopState(int currIndex) {
-    final int totalSec = _player?.duration?.inSeconds ?? 0;
-    final int totalSection = ItemLoopState.getSection(totalSec);
-    final ItemLoopState state = ItemLoopState(currIndex, totalSection);
+    final int totalMs = _player?.duration?.inMilliseconds ?? 0;
+    final int totalSection = ItemLoopState.getSection(totalMs, speed.value);
+    final ItemLoopState state = ItemLoopState(
+      currIndex,
+      totalSection,
+      (ItemLoopState.getLoopMillisecond(speed.value) / 1000).round(),
+    );
     itemLoopState.add(state);
   }
 
