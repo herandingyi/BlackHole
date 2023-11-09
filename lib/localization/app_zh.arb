@@ -35,6 +35,8 @@
   "@addedToFav": {},
   "adjustSpeed": "调整速度",
   "@adjustSpeed": {},
+  "adjustItemLoopWaitSecond": "调整循环时间",
+  "@adjustItemLoopWaitSecond": {},
   "album": "专辑",
   "@album": {},
   "albumArtist": "专辑艺人",

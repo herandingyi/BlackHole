@@ -29,6 +29,8 @@
   "@addedToQueue": {},
   "adjustSpeed": "Adjust Speed",
   "@adjustSpeed": {},
+  "adjustItemLoopWaitSecond": "Adjust Loop Time",
+  "@adjustItemLoopWaitSecond": {},
   "album": "Album",
   "@album": {},
   "albumArtist": "Album Artist",

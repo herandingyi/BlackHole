@@ -781,8 +781,20 @@ class ItemLoopState {
   bool get hasPrevious => currSectionIndex > 0;
 
   bool get hasNext => currSectionIndex < totalSection;
+
+  static void putWaitSecond(int time) {
+    Hive.box('cache').put('itemLoopWaitSecond', time);
+  }
+
   static int getWaitSecond() {
-    return 15;
+    return Hive.box('cache').get(
+      'itemLoopWaitSecond',
+      defaultValue: 15,
+    ) as int;
+  }
+
+  static int getLoopSecond(double speed) {
+    return (ItemLoopState.getLoopMillisecond(speed) / 1000).round();
   }
 
   static int getLoopMillisecond(double speed) {
@@ -1032,6 +1044,7 @@ abstract class AudioPlayerHandler implements AudioHandler {
   ValueStream<double> get volume;
   Future<void> setVolume(double volume);
   ValueStream<double> get speed;
+  ValueStream<int> get itemLoopWaitSecond;
   ValueStream<ItemLoopState> get itemLoopState;
 }
 

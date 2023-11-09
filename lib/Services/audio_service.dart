@@ -88,7 +88,10 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   @override
   final BehaviorSubject<ItemLoopState> itemLoopState =
       BehaviorSubject.seeded(const ItemLoopState(0, 0, 15));
-
+  @override
+  final BehaviorSubject<int> itemLoopWaitSecond = BehaviorSubject.seeded(
+    ItemLoopState.getWaitSecond(),
+  );
   Stream<List<IndexedAudioSource>> get _effectiveSequence => Rx.combineLatest3<
               List<IndexedAudioSource>?,
               List<int>?,
@@ -900,7 +903,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
     final ItemLoopState state = ItemLoopState(
       currIndex,
       totalSection,
-      (ItemLoopState.getLoopMillisecond(speed.value) / 1000).round(),
+      ItemLoopState.getLoopSecond(speed.value),
     );
     itemLoopState.add(state);
   }
@@ -953,6 +956,16 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
     }
     if (name == 'displayItemLoopState') {
       displayItemLoopState(getCurrItemIndex());
+    }
+    if (name == 'setItemLoopWaitSecond') {
+      if (extras?['time'] != null &&
+          extras!['time'].runtimeType == int &&
+          extras['time'] > 0 as bool) {
+        final int time = extras['time'] as int;
+        ItemLoopState.putWaitSecond(time);
+        itemLoopWaitSecond.add(time);
+        displayItemLoopState(getCurrItemIndex());
+      }
     }
     if (name == 'sleepTimer') {
       _sleepTimer?.cancel();

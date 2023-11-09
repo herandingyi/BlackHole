@@ -118,7 +118,7 @@ class _SeekBarState extends State<SeekBar> {
                           onTap: () {
                             showLoopItemDialog(
                               context: context,
-                              title: AppLocalizations.of(context)!.adjustSpeed,
+                              title: AppLocalizations.of(context)!.adjustItemLoopWaitSecond,
                               divisions: 25,
                               min: 0.5,
                               max: 3.0,
@@ -379,18 +379,14 @@ void showLoopItemDialog({
         borderRadius: BorderRadius.circular(15.0),
       ),
       title: Text(title, textAlign: TextAlign.center),
-      content: StreamBuilder<double>(
-        stream: audioHandler.speed,
+      content: StreamBuilder<int>(
+        stream: audioHandler.itemLoopWaitSecond,
         builder: (context, snapshot) {
-          double value = snapshot.data ?? audioHandler.speed.value;
-          if (value > max) {
-            value = max;
-          }
-          if (value < min) {
-            value = min;
-          }
+          const minSecond = 5;
+          const maxSecond = 30;
+          var waitSecond = ItemLoopState.getWaitSecond();
           return SizedBox(
-            height: 100.0,
+            height: 60.0,
             child: Column(
               children: [
                 Row(
@@ -398,15 +394,17 @@ void showLoopItemDialog({
                   children: [
                     IconButton(
                       icon: const Icon(CupertinoIcons.minus),
-                      onPressed: audioHandler.speed.value > min
+                      onPressed: waitSecond > minSecond
                           ? () {
-                              audioHandler
-                                  .setSpeed(audioHandler.speed.value - 0.1);
+                              audioHandler.customAction(
+                                'setItemLoopWaitSecond',
+                                {'time': waitSecond - 5},
+                              );
                             }
                           : null,
                     ),
                     Text(
-                      '${snapshot.data?.toStringAsFixed(1)}$valueSuffix',
+                      '$waitSecond',
                       style: const TextStyle(
                         fontFamily: 'Fixed',
                         fontWeight: FontWeight.bold,
@@ -415,25 +413,17 @@ void showLoopItemDialog({
                     ),
                     IconButton(
                       icon: const Icon(CupertinoIcons.plus),
-                      onPressed: audioHandler.speed.value < max
+                      onPressed: waitSecond < maxSecond
                           ? () {
-                              audioHandler
-                                  .setSpeed(audioHandler.speed.value + 0.1);
+                              audioHandler.customAction(
+                                'setItemLoopWaitSecond',
+                                {'time': waitSecond + 5},
+                              );
                             }
                           : null,
                     ),
                   ],
-                ),
-                Slider(
-                  inactiveColor:
-                      Theme.of(context).iconTheme.color!.withOpacity(0.4),
-                  activeColor: Theme.of(context).iconTheme.color,
-                  divisions: divisions,
-                  min: min,
-                  max: max,
-                  value: value,
-                  onChanged: audioHandler.setSpeed,
-                ),
+                )
               ],
             ),
           );
