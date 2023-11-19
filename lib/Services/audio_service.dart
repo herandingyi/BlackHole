@@ -85,6 +85,8 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   final BehaviorSubject<double> speed = BehaviorSubject.seeded(1.0);
   final _mediaItemExpando = Expando<MediaItem>();
   Timer? itemLoopTimer;
+  Timer? muteTimer;
+  double lastVolume = 1;
   @override
   final BehaviorSubject<ItemLoopState> itemLoopState =
       BehaviorSubject.seeded(const ItemLoopState(0, 0, 15));
@@ -882,15 +884,38 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
         setRepeatMode(AudioServiceRepeatMode.one),
       ]);
     }
-    return Timer(Duration(seconds: ItemLoopState.getWaitSecond() + 2), () {
+    const delay = 2;
+    muteTimer?.cancel();
+    setVolume(1);
+    lastVolume = 1;
+    final waitToMute = ItemLoopState.getWaitSecond() + delay;
+    muteTimer = Timer(Duration(seconds: waitToMute), () {
+      lastVolume = _player!.volume;
+      setVolume(0);
+    });
+    final waitToNext = ItemLoopState.getWaitSecond() +
+        ItemLoopState.getMuteDurationSecond() +
+        delay;
+    return Timer(Duration(seconds: waitToNext), () {
       Future.wait([PerfectVolumeControl.getVolume()])
           .then((value) => nextByVolume(value[0], i));
     });
   }
 
   void nextByVolume(double newVolume, int i) {
+    var volumeChange = false;
+    if (_player!.volume != 1 && _player!.volume != 0) {
+      setVolume(1);
+      volumeChange = true;
+    }
+    if (lastVolume != 1 && lastVolume != 0) {
+      volumeChange = true;
+    }
     if (oldVolume != newVolume) {
       PerfectVolumeControl.setVolume(oldVolume);
+      volumeChange = true;
+    }
+    if (volumeChange) {
       incItemLoop(1, incHandler);
     } else {
       itemLoopTimer = itemLoop(i);
@@ -919,6 +944,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   @override
   Future<void> pause() async {
     itemLoopTimer?.cancel();
+    muteTimer?.cancel();
     _player!.pause();
     await Hive.box('cache').put('lastIndex', _player!.currentIndex);
     await Hive.box('cache').put('lastPos', _player!.position.inSeconds);
@@ -931,6 +957,7 @@ class AudioPlayerHandlerImpl extends BaseAudioHandler
   @override
   Future<void> stop() async {
     itemLoopTimer?.cancel();
+    muteTimer?.cancel();
     Logger.root.info('stopping player');
     await _player!.stop();
     await playbackState.firstWhere(

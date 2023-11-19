@@ -792,6 +792,9 @@ class ItemLoopState {
       defaultValue: 15,
     ) as int;
   }
+  static int getMuteDurationSecond() {
+    return 5;
+  }
 
   static int getLoopSecond(double speed) {
     return (ItemLoopState.getLoopMillisecond(speed) / 1000).round();
